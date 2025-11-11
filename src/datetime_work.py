@@ -85,27 +85,15 @@ def greeting_func(date_obj):
 
 def iter_thru_ops(list_of_ops):
     """Итерируемся по списку операций и создаём список с нужными датами"""
-    # list_of_dates = []
+    list_of_dates = []
     dates_strings = ""
     for operation in list_of_ops:
         dates_strings = operation["Дата операции"]
+        list_of_dates.append(dates_strings)
 
-    return dates_strings
+    return list_of_dates
 
 dates = iter_thru_ops(operations_list)
-
-
-# def iter_thru_ops(list_of_ops):
-#     """Итерируемся по списку операций и создаём список с нужными датами"""
-#     dates_strings = ""
-#     for operation in list_of_ops:
-#         dates_strings = operation["Дата операции"]
-#         break  # берем только первую дату для примера
-#
-#     return dates_strings
-
-
-# dates = iter_thru_ops(operations_list)
 
 # Извлекаем день, месяц, год с помощью регулярных выражений
 # date_pattern = r'(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})'

@@ -13,8 +13,9 @@ import re
 
 PATH_TO_FILE = Path(__file__).parent.parent / "data" / "user_settings.json"
 BASE_DIR = Path(__file__).parent.parent
-load_dotenv(BASE_DIR / '.env')
-TCS_TOKEN = os.getenv('API_TOKEN_TINKOFF')
+load_dotenv(BASE_DIR / ".env")
+TCS_TOKEN = os.getenv("API_TOKEN_TINKOFF")
+
 
 # Ограничение- не больше 5 запросов в минуту,
 # не более 500 запросов в день. Задержка примерно 15 секунд.
@@ -29,27 +30,18 @@ def get_us_stocks_alpha_vantage(tickers, api_key):
             data = response.json()
 
             # Проверяем, есть ли данные по тикеру
-            if 'Global Quote' in data and data['Global Quote']:
-                quote = data['Global Quote']
-                stock_prices.append({
-                    'stock': ticker,
-                    'price': float(quote['05. price'])
-                })
+            if "Global Quote" in data and data["Global Quote"]:
+                quote = data["Global Quote"]
+                stock_prices.append({"stock": ticker, "price": float(quote["05. price"])})
             else:
                 print(f"Нет данных для тикера {ticker}")
-                stock_prices.append({
-                    'stock': ticker,
-                    'price': 0.0  # или можно пропустить
-                })
+                stock_prices.append({"stock": ticker, "price": 0.0})  # или можно пропустить
 
         except Exception as e:
             print(f"Ошибка при получении данных для {ticker}: {e}")
-            stock_prices.append({
-                'stock': ticker,
-                'price': 0.0
-            })
+            stock_prices.append({"stock": ticker, "price": 0.0})
 
-    return {'stock_prices': stock_prices}
+    return {"stock_prices": stock_prices}
 
 
 def read_user_settings(path):
@@ -68,26 +60,30 @@ def read_user_settings(path):
         print("Запись содержит ошибки")
         return []
 
+
 # Получаем набор настроек
 settings = read_user_settings(PATH_TO_FILE)
+
 
 def get_lists_of_settings(dict_of_settings: dict):
     """Получаем список валют и список акций"""
     # получаем список валют
-    users_currencies = dict_of_settings.get('user_currencies')
+    users_currencies = dict_of_settings.get("user_currencies")
     # получаем список акций
-    users_stocks = dict_of_settings.get('user_stocks')
+    users_stocks = dict_of_settings.get("user_stocks")
     return users_currencies, users_stocks
+
 
 settings = get_lists_of_settings(settings)
 # получаем список валют
-list_of_currencies=settings[0]
+list_of_currencies = settings[0]
 # получаем список акций
-list_of_stocks=settings[1]
+list_of_stocks = settings[1]
 # словарь акций результат
 stocks = get_us_stocks_alpha_vantage(list_of_stocks, TCS_TOKEN)
 
-def read_xl_file(path_to_file_xl: str)  -> str:
+
+def read_xl_file(path_to_file_xl: str) -> str:
     """Функция для считывания excel файла.
     должна принимать путь например:
     "../data/transactions_excel.xlsx"/"""
@@ -107,6 +103,7 @@ def read_xl_file(path_to_file_xl: str)  -> str:
     return list_of_dicts_xl
     # return json_data
 
+
 # получаем документ в json формате
 operations_list = read_xl_file("../data/operations.xlsx")
 
@@ -115,6 +112,8 @@ operations_list = read_xl_file("../data/operations.xlsx")
 # operations_list = json.loads(cleaned_json)
 
 my_date_object = datetime.datetime.now()
+
+
 def greeting_func(date_obj):
     if date_obj.hour < 12:
         return "Доброе утро!"
@@ -123,8 +122,9 @@ def greeting_func(date_obj):
     else:
         return "Добрый вечер!"
 
+
 def iter_thru_ops(list_of_ops):
-    """Итерируемся по списку операций и создаём список с нужными датами"""
+    """Итерируемся по списку операций и создаём список с датами"""
     # list_of_dates = []
     dates_strings = ""
     for operation in list_of_ops:
@@ -132,35 +132,63 @@ def iter_thru_ops(list_of_ops):
 
     return dates_strings
 
+
 dates = iter_thru_ops(operations_list)
+my_date_string = "2018-01-19 17:10:35"
 
 
-# def iter_thru_ops(list_of_ops):
-#     """Итерируемся по списку операций и создаём список с нужными датами"""
-#     dates_strings = ""
-#     for operation in list_of_ops:
-#         dates_strings = operation["Дата операции"]
-#         break  # берем только первую дату для примера
-#
-#     return dates_strings
+def read_my_date(date: str) -> list:
+    """Функция принимающую на вход строку с датой и временем в формате YYYY-MM-DD HH:MM:SS
+    Возвращаем список в формате год, месяц, день"""
+    # Извлекаем день, месяц, год с помощью регулярных выражений.
+    # По сути убеждаемся, что наша функция правильно читает дату.
+    date_pattern = r"(\d{4})\-(\d{2})\-(\d{2}) (\d{2}):(\d{2}):(\d{2})"
+    match = re.match(date_pattern, date)
+
+    if match:
+        year = match.group(1)  # '2018'
+        month = match.group(2)  # '01'
+        day = match.group(3)  # '01'
+        hour = match.group(4)  # '12'
+        minute = match.group(5)  # '49'
+        second = match.group(6)  # '53'
+
+    # print(f"День: {day}, Месяц: {month}, Год: {year}")
+    # print(f"Время: {hour}:{minute}:{second}")
+    return [year, month, day]
 
 
-# dates = iter_thru_ops(operations_list)
+user_date = read_my_date(my_date_string)
 
-# Извлекаем день, месяц, год с помощью регулярных выражений
-# date_pattern = r'(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})'
-# match = re.match(date_pattern, dates)
-#
-# if match:
-#     day = match.group(1)  # '01'
-#     month = match.group(2)  # '01'
-#     year = match.group(3)  # '2018'
-#     hour = match.group(4)  # '12'
-#     minute = match.group(5)  # '49'
-#     second = match.group(6)  # '53'
-#
-#     print(f"День: {day}, Месяц: {month}, Год: {year}")
-#     print(f"Время: {hour}:{minute}:{second}")
+
+def compare_my_date_with_dates_from_list(dates: list, user_date_string) -> list:
+    some_list = []
+    # тут у нас список: год, месяц, день.
+    user_data = read_my_date(user_date_string)
+
+    # Извлекаем день, месяц, год с помощью регулярных выражений
+    date_pattern = r"(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})"
+    # Начинаем проходится по списку
+    for date in dates:
+        match = re.match(date_pattern, date)
+
+        if match:
+            day = match.group(1)  # '01'
+            month = match.group(2)  # '01'
+            year = match.group(3)  # '2018'
+            hour = match.group(4)  # '12'
+            minute = match.group(5)  # '49'
+            second = match.group(6)  # '53'
+
+            if year == user_data[0] and month == user_data[1] and day > "0" and day <= user_data[2]:
+                some_list.append(f"{day}.{month}.{year}")
+
+            # print(f"День: {day}, Месяц: {month}, Год: {year}")
+            # print(f"Время: {hour}:{minute}:{second}")
+    return some_list
+
+
+my_date_list = compare_my_date_with_dates_from_list(dates, user_date)
 
 
 def filter_by_date(date: str, operations):
@@ -172,11 +200,14 @@ def filter_by_date(date: str, operations):
 
     pass
 
+
 if __name__ == "__main__":
-    print(dates)
+    # print(dates)
     # print(stocks)
-    print()
+    # print(operations_list)
     # print(read_user_settings(PATH_TO_FILE))
     # print(greeting_func(my_date_object))
     # print(list_of_currencies)
     # print(my_date_object.minute)
+    print(user_date)
+    print(my_date_list)
