@@ -48,9 +48,19 @@ def spending_by_category(transactions: pd.DataFrame,
     filtered_df_by_cat_and_date = df_filtered_by_date(filtered_df_by_cat,date)
     return filtered_df_by_cat_and_date
 
+
+def print_full_df(df):
+    """Печатает DataFrame полностью без усечения"""
+    with pd.option_context('display.max_rows', None,
+                           'display.max_columns', None,
+                           'display.width', None,
+                           'display.max_colwidth', None):
+        print(df)
+
 if __name__ == "__main__":
-    filtered_df = df_filtered_by_date(df, "2020.03.15")
-    print(filtered_df)
+    # filtered_df = df_filtered_by_date(df, "2020.03.15")
+    # print(filtered_df)
 
-    print(spending_by_category(df,"Переводы","2020.03.15"))
-
+    # print(spending_by_category(df,"Переводы","2020.03.15"))
+    result = spending_by_category(df,"Переводы","2020.03.15")
+    print_full_df(result)
