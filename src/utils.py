@@ -94,10 +94,12 @@ def filter_by_date(target_date: str, operations: list[dict]) -> list[dict]:
 
 def greeting_func(date_obj: datetime) -> str:
     """Возвращает приветствие по времени суток"""
-    if date_obj.hour < 12:
+    if date_obj.hour < 12 and date_obj.hour > 6:
         return "Доброе утро!"
     elif date_obj.hour < 17:
         return "Добрый день!"
+    elif date_obj.hour > 0 and date_obj.hour < 6:
+        return "Доброй ночи!"
     else:
         return "Добрый вечер!"
 

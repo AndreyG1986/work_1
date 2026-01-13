@@ -4,8 +4,9 @@ from dotenv import load_dotenv
 from pathlib import Path
 import requests
 import json
+from datetime import datetime
 
-from src.utils import read_user_settings, get_user_lists, get_us_stocks_alpha_vantage
+from src.utils import read_user_settings, get_user_lists, get_us_stocks_alpha_vantage, filter_by_date, greeting_func, read_excel_file
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY_APILAYER")
@@ -13,6 +14,9 @@ TCS_TOKEN = os.getenv("API_TOKEN_TINKOFF")
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 SETTINGS_PATH = DATA_DIR / "user_settings.json"
+excel_path = DATA_DIR / "operations.xlsx"
+# Читаем операции
+operations = read_excel_file(excel_path)
 
 
 def receive_currencies(currencies: list[str]) -> dict:
@@ -93,6 +97,10 @@ def main(date: str) -> Any:
     """
     Собирает JSON-ответ для страницы "Главная".
     """
+    # Пересчитываем filtered_ops, так как дата может различаться
+    # Фильтруем по дате
+    filtered_ops = filter_by_date(date, operations)
+
     # 1) читаем настройки
     settings = read_user_settings(SETTINGS_PATH)
     currencies_list, stocks_list = get_user_lists(settings)
@@ -117,7 +125,9 @@ def main(date: str) -> Any:
 
     # 6) Собираем итоговый ответ
     response = {
+        "greeting": greeting_func(datetime.now()),
         "date": date,
+        "filtered_by_date_operations": filtered_ops,
         "currency_rates": currencies_result["currency_rates"],
         "stocks": stocks_data,
     }

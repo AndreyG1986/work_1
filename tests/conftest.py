@@ -4,6 +4,9 @@ import pytest
 @pytest.fixture
 def result_fixture():
   return {
+  "greeting": "Добрый вечер!",
+  "date": "2019-11-12 17:10:35",
+  "filtered_by_date_operations": [{
     "date": "2019-11-12 17:10:35",
     "currency_rates": [
       {
@@ -37,7 +40,7 @@ def result_fixture():
         "price": 439.62
       }
     ]
-  }
+  }]}
 
 @pytest.fixture
 def operation_from_excel():
