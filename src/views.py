@@ -1,91 +1,141 @@
-# Главная и События
-# views.py
-# Курс валют.
-# Стоимость акций из S&P500
 from typing import Any
 import os
 from dotenv import load_dotenv
-from src.utils import list_of_currencies, stocks
+from pathlib import Path
 import requests
 import json
+from datetime import datetime
 
+from src.utils import read_user_settings, get_user_lists, get_us_stocks_alpha_vantage, filter_by_date, greeting_func, read_excel_file
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY_APILAYER")
-currency_to = "RUB"
-PATH_TO_FILE_OPERATIONS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "user_settings.json")
+TCS_TOKEN = os.getenv("API_TOKEN_TINKOFF")
 
-def receive_currencies(currencies: list) -> dict:
-    """преобразуем список к красивому формату, как в ТЗ
-       {'currency_rates': [{'currency': 'USD', 'rate': 0.0}, {'currency': 'EUR', 'rate': 0.0}]}"""
-    dict_of_currencies = {
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+SETTINGS_PATH = DATA_DIR / "user_settings.json"
+excel_path = DATA_DIR / "operations.xlsx"
+# Читаем операции
+operations = read_excel_file(excel_path)
+
+
+def receive_currencies(currencies: list[str]) -> dict:
+    """
+    Преобразуем список валют в формат:
+    {"currency_rates": [{"currency": "USD", "rate": 0.0}, ...]}
+    """
+    return {
         "currency_rates": [
-            {"currency": currency, "rate": 0.0}
-            for currency in currencies
+            {"currency": c, "rate": 0.0} for c in currencies
         ]
     }
-    return dict_of_currencies
 
-currencies_result = receive_currencies(list_of_currencies)
 
-def convert_to_rubles(currencies: list) -> list[float]:
-    """Функция с помощью которой получаем список курсов в рублях"""
-    list_of_rates = []
+def convert_to_rubles(currencies: list[str], api_key: str | None) -> list[float]:
+    """
+    Для каждого кода валюты возвращаем курс в рублях (float).
+    Если валюта == "RUB" -> 1.0
+    В случае ошибки возвращаем 0.0 для этой валюты (чтобы список остался корректной длины).
+    """
+    list_of_rates: list[float] = []
+
+    if not api_key:
+
+        for cur in currencies:
+            list_of_rates.append(1.0 if cur == "RUB" else 0.0)
+        return list_of_rates
+
+    headers = {"apikey": api_key}
+
     for currency_from in currencies:
-        amount = 1.0
-        url = f"https://api.apilayer.com/exchangerates_data/convert?to={currency_to}&from={currency_from}&amount={amount}"
-        payload = {}
-        headers = {"apikey": f"{API_KEY}"}
-
         if currency_from == "RUB":
+            list_of_rates.append(1.0)
+            continue
+
+
+        url = (
+            "https://api.apilayer.com/exchangerates_data/convert"
+            f"?to=RUB&from={currency_from}&amount=1"
+        )
+
+        try:
+            resp = requests.get(url, headers=headers, timeout=10)
+            if resp.status_code != 200:
+
+                print(f"Ошибка API для {currency_from}: {resp.status_code}")
+                list_of_rates.append(0.0)
+                continue
+
+            data = resp.json()
+
+            amount = float(data.get("result", 0.0))
             list_of_rates.append(amount)
-            return list_of_rates
-        # elif currency_from == {}:
-        #     return amount
-        else:
-            response = requests.request("GET", url, headers=headers, data=payload)
-            status_code = response.status_code
-            result = response.text
+        except Exception as e:
+            print(f"Исключение при запросе курса {currency_from}: {e}")
+            list_of_rates.append(0.0)
 
-            if status_code == 200:
-
-                python_response = json.loads(result)
-                amount = float(python_response.get("result", 0))
-                list_of_rates.append(amount)
     return list_of_rates
 
-list_of_currency_rates = convert_to_rubles(list_of_currencies)
 
-# Теперь вот тут нужно написать функции, которые будут заменять "rates"
-# в нашем списке словариков currencies_result
-def update_currencies(currencies_res: list[dict], cur_rates: list[float], cur_list: list[str]) -> list[dict]:
-    """Заменяем значения по ключу "rate" в нашем словарике"""
-    currencies_res = {
+def update_currencies(currencies_res: dict, cur_rates: list[float], cur_list: list[str]) -> dict:
+    """
+    Обновляем поля 'rate' у currencies_res по списку cur_rates.
+    Корректно работает, даже если длины списков не совпадают.
+    """
+
+    n = min(len(cur_list), len(cur_rates))
+    updated = {
         "currency_rates": [
             {"currency": cur_list[i], "rate": cur_rates[i]}
-            for i in range(len(cur_list))
+            for i in range(n)
         ]
     }
-    return currencies_res
+    return updated
 
 
+def main(date: str) -> Any:
+    """
+    Собирает JSON-ответ для страницы "Главная".
+    """
+    # Пересчитываем filtered_ops, так как дата может различаться
+    # Фильтруем по дате
+    filtered_ops = filter_by_date(date, operations)
 
-# def main(date: str) -> JSONType:
-def main(date: str)-> Any:
-    """Функция для страницы «Главная» принимает на вход строку с датой
-    и временем в формате YYYY-MM-DD HH:MM:SS.
-    Функция для страницы «Главная» отдает корректный JSON-ответ согласно ТЗ"""
-    pass
+    # 1) читаем настройки
+    settings = read_user_settings(SETTINGS_PATH)
+    currencies_list, stocks_list = get_user_lists(settings)
 
-# stocks_result = get_us_stocks_alpha_vantage(list_of_stocks, TCS_TOKEN)
-cur_dict = update_currencies(currencies_result, list_of_currency_rates, list_of_currencies)
-sum_of_dicts = cur_dict,stocks
+    # 2) создаём "пустой" результат по валютам
+    currencies_result = receive_currencies(currencies_list)
+
+    # 3) получаем курсы в рублях
+    rates = convert_to_rubles(currencies_list, API_KEY)
+
+    # 4) обновляем словарь валют
+    currencies_result = update_currencies(currencies_result, rates, currencies_list)
+
+    # 5) получаем цены акций (если есть ключ)
+    stocks_data = []
+    if stocks_list and TCS_TOKEN:
+        # вызываем функцию из utils, она сама делает запросы
+        stocks_data = get_us_stocks_alpha_vantage(stocks_list, TCS_TOKEN)
+    else:
+        # если нет ключа или списка — заполним пустым списком
+        stocks_data = []
+
+    # 6) Собираем итоговый ответ
+    response = {
+        "greeting": greeting_func(datetime.now()),
+        "date": date,
+        "filtered_by_date_operations": filtered_ops,
+        "currency_rates": currencies_result["currency_rates"],
+        "stocks": stocks_data,
+    }
+    return response
+
 
 if __name__ == "__main__":
-    print(sum_of_dicts)
-    # print(update_currencies(currencies_result, list_of_currency_rates, list_of_currencies))
-    # print(list_of_currencies)
-    # print(list_of_stocks)
-    # print(convert_to_rubles(list_of_currencies))
-
+    example_date = "2019-11-12 17:10:35"
+    result = main(example_date)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
